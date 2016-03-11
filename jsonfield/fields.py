@@ -31,12 +31,7 @@ class JSONFormFieldBase(object):
 
     def db_type(self, connection):
         # Test to see if we support JSON
-        cursor = connection.cursor()
-        try:
-            sid = transaction.savepoint()
-            cursor.execute('SELECT \'{"a":"json object"}\'::json;')
-        except (DatabaseError, pyodbc.ProgrammingError):
-            transaction.savepoint_rollback(sid)
+        if connection.settings_dict['ENGINE'] == 'django.db.backends.mysql':
             return 'text'
         else:
             return 'json'
