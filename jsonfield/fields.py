@@ -29,21 +29,6 @@ class JSONFormFieldBase(object):
         self.load_kwargs = kwargs.pop('load_kwargs', {})
         super(JSONFormFieldBase, self).__init__(*args, **kwargs)
 
-    def db_type(self, connection):
-        # Test to see if we support JSON
-        if connection.settings_dict['ENGINE'] == 'sql_server.pyodbc':
-            return 'text'
-        else:
-            cursor = connection.cursor()
-            try:
-                sid = transaction.savepoint()
-                cursor.execute('SELECT \'{"a":"json object"}\'::json;')
-            except (DatabaseError, pyodbc.ProgrammingError):
-                transaction.savepoint_rollback(sid)
-                return 'text'
-            else:
-                return 'json'
-
     def to_python(self, value):
         if isinstance(value, six.string_types):
             try:
@@ -109,6 +94,23 @@ class JSONFieldBase(six.with_metaclass(SubfieldBase, models.Field)):
             pass
 
         return value
+
+    def get_internal_type(self):
+        return 'TextField'
+
+    def db_type(self, connection):
+        if connection.settings_dict['ENGINE'] == 'sql_server.pyodbc':
+            return 'text'
+        else:
+            cursor = connection.cursor()
+            try:
+                sid = transaction.savepoint()
+                cursor.execute('SELECT \'{"a":"json object"}\'::json;')
+            except (DatabaseError, pyodbc.ProgrammingError):
+                transaction.savepoint_rollback(sid)
+                return 'text'
+            else:
+                return 'json'
 
     def to_python(self, value):
         """The SubfieldBase metaclass calls pre_init instead of to_python, however to_python
