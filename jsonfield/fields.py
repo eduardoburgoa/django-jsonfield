@@ -1,6 +1,9 @@
 import copy
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from django.db import models, DatabaseError, transaction
+import pyodbc
+
 try:
     from django.utils import six
 except ImportError:
@@ -25,6 +28,18 @@ class JSONFormFieldBase(object):
     def __init__(self, *args, **kwargs):
         self.load_kwargs = kwargs.pop('load_kwargs', {})
         super(JSONFormFieldBase, self).__init__(*args, **kwargs)
+
+    def db_type(self, connection):
+        # Test to see if we support JSON
+        cursor = connection.cursor()
+        try:
+            sid = transaction.savepoint()
+            cursor.execute('SELECT \'{"a":"json object"}\'::json;')
+        except (DatabaseError, pyodbc.ProgrammingError):
+            transaction.savepoint_rollback(sid)
+            return 'text'
+        else:
+            return 'json'
 
     def to_python(self, value):
         if isinstance(value, six.string_types):
